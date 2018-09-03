@@ -1,0 +1,114 @@
+## Redis 学习总结
+
+redis用了三年了，但一直没有一个好的总结，这次抽空做个总结。文章中的案例均来自《Redis实战》这本书。这本书感觉很不错，非常贴近实际开发，案例丰富，可实验性强。
+
+### redis的五种数据结构
+
+- String(字符串)
+- Hash(哈希表)
+- List(列表)
+- Set(集合)
+- SortedSet(有序集合)
+
+
+
+**redis实验环境**
+
+```bash
+$ docker run -d -p 6379:6379 -v /var/lib/redis:/data --name redis redis:5.0-rc-alpine --requirepass mypassword
+```
+
+
+
+### 应用案例(来自《Redis实战》)
+
+- 文章投票
+
+  [**示例代码**](https://github.com/fpagyu/hjkl/tree/master/hjkl/article_vote)
+
+- web应用(Fake Web Retailer)
+
+  [**示例代码**](https://github.com/fpagyu/hjkl/tree/master/hjkl/fake_web)
+
+
+
+### Redis 持久化
+
+
+
+**RDB(快照持久化)**
+
+RDB持久化是指在指定的时间间隔内将内存中的数据集快照写入磁盘，实际操作过程是fork一个子进程，先将数据集写入临时文件，写入成功后，再替换之前的文件，用二进制压缩存储。
+
+**配置:**
+
+```
+save 900 1         #在900秒(15分钟)之后，如果至少有1个key发生变化，则dump内存快照。
+save 300 10        #在300秒(5分钟)之后，如果至少有10个key发生变化，则dump内存快照。
+save 60 10000      #在60秒(1分钟)之后，如果至少有10000个key发生变化，则dump内存快照。
+```
+
+
+
+**优点**：
+
+1. 简单。 适合做灾备， 在系统发生灾难性故障时，可以很快的恢复数据。
+2. 如果数据集很大，启动效率较AOF要好。
+3. 性能优。持久化工作有子进程协助完成，分担了服务进程的io压力。
+
+**缺点：** 
+
+1. 可能会丢失一段时间内的数据。
+2. 如果数据集较大，可能导致在持久化过程中，服务出现延迟。
+
+
+
+**AOF(APPEND ONLY MODE)**
+
+AOF持久化以日志的形式记录服务器所处理的每一个写、删除操作，查询操作不会记录，以文本的方式记录，可以打开文件看到详细的操作记录。
+
+**配置:**
+
+```
+appendfsync always     #每次有数据修改发生时都会写入AOF文件。
+appendfsync everysec  #每秒钟同步一次，该策略为AOF的缺省策略。
+appendfsync no          #从不同步。高效但是数据不会被持久化。
+```
+
+
+
+**优点**:
+
+1. 数据持久化的安全性更高。
+
+**缺点:**
+
+1. 持久化性能较RDB要差一些。
+2. 如果数据集很大，则在服务启动时，要花费更长的时间恢复数据。
+3. 相同的数据集，AOF文件一般要大于RDB。
+
+
+
+### 其他
+
+#### 集群
+
+#### 故障恢复
+
+#### 事务
+
+#### Lua扩展
+
+
+
+相关文档:
+
+[Redis命令参考](http://redisdoc.com/)
+
+[Redis持久化的几种方式](https://www.cnblogs.com/chenliangcl/p/7240350.html)
+
+
+
+书籍：
+
+《Redis实战》
