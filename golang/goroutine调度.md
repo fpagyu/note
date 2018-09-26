@@ -26,6 +26,8 @@ P的数量大致与CPU核数相当(有可能更多/更少)，M则是按需创建
 
 **相关资源**
 
+[Scalable Go Scheduler Design Doc](https://docs.google.com/document/d/1TTj4T2JO42uD5ID9e89oa0sLKhJYD0Y_kqxDv3I3XMw/edit#heading=h.mmq8lm48qfcw)
+
 [《go语言学习笔记》-- 雨痕老师](https://github.com/qyuhen/book)
 
 [也谈goroutine调度器](https://tonybai.com/2017/06/23/an-intro-about-goroutine-scheduler/)
