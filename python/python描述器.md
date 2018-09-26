@@ -26,6 +26,91 @@ python描述器相关内容其实在《Python核心编程》(第二版)中有较
 
 
 
+### 描述符协议调用
+
+协议描述符的调用过程中有几个重点：
+
+- 描述器的调用是因为 `__getattribute__()`
+- 重写 `__getattribute__()` 方法会阻止正常的描述器调用
+- `__getattribute__()` 只对新式类的实例可用
+- `object.__getattribute__()` 和 `type.__getattribute__()` 对 `__get__()` 的调用不一样
+- 资料描述器总是比实例字典优先。
+- 非资料描述器可能被实例字典重写。(非资料描述器不如实例字典优先)
+
+
+
+举个简单例子：
+
+```python
+import numbers
+
+class IntField:
+    """ data descriptor
+    这是一个资料描述符
+    """
+    def __get__(self, instance, owner):
+        print(self)
+        print(instance)
+        return self.value
+
+    def __set__(self, instance, value):
+        if not isinstance(value, numbers.Integral):
+            raise ValueError('integer value expected')
+
+        if value < 0:
+            raise ValueError('possive value expected')
+
+        self.value = value
+
+    def __delete__(self, instance):
+        pass
+
+class SmallIntField:
+    """ non-data descriptor
+    这是一个非资料描述符
+    """
+
+    def __init__(self, value):
+        self.value = value
+
+    def __get__(self, instance, owner):
+        return self.value
+
+class User:
+    age = IntField()
+    sex = SmallIntField(1)
+
+if __name__ == '__main__':
+    user = User()
+    user.age = 18
+    user.__dict__['age'] = 26
+    print(user.age)
+
+    print("==================\n")
+    user.sex = 0
+    print(user.sex)
+```
+
+执行这段程序将会输出如下结果:
+
+```
+<__main__.IntField object at 0x7f4f0c110d68>
+<__main__.User object at 0x7f4f0c110b70>
+18
+==================
+
+0
+```
+
+从结果中我们可以看到， age 是一个资料描述符, 因此在属性查找过程中具有最高的优先级(优先调用\_\_get\_\_())。而sex是一个非资料描述符, 其属性查找过程中其优先级反而会低于在实例\_\_dict\_\_中查找。
+
+总结如下， 对于obj.x(obj是一个实例), 通过\_\_getattribute\_\_方法触发属性查找过程：
+
+1. 如果x是出现在type(obj)或其基类的\_\_dict\_\_中， 且age是data descriptor， 那么优先调用其\_\_get\_\_()
+2. 如果x是出现在obj.\_\_dict\_\_中， 那么直接返回obj._\_dict\_\_['x']， 否则
+3. 如果x出现在type(obj)或其基类的\_\_dict\_\_中, 如果x是non-data descriptor, 那么调用其\_\_get\_\_方法，否则返回\_\_dict\_\_['x']
+4. 调用\_\_getattr\_\_
+
 **参考资料**
 
 [Python描述器引导](https://pyzh.readthedocs.io/en/latest/Descriptor-HOW-TO-Guide.html)
