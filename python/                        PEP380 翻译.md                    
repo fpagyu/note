@@ -1,0 +1,136 @@
+
+
+## PEP380 -- 委派子生成器的语法
+
+
+
+[TOC]
+
+### 摘要
+
+该PEP提出了一种新语法，用以将一个生成器的部分操作委派给另一个生成器实现。这将允许一段包含‘yield’的代码被分解并放到另一个生成器中。此外， 子生成器允许返回一个值给委派生成器。
+
+新语法也为“生成器yield另一个生成器的值”提供了基础。
+
+### 动机
+
+Python的生成器是协程的一种形式，但有一些局限性，它只允许将值yield给生成器的调用方。这意味着，一段包含’yield‘的生成器代码不能像普通代码一样被分解成为多个子函数。执行这样的分解，会让这些被调用的子函数变为生成器，因此需要显示的遍历这些子生成器，并将这些子生成器产出的值重新yield到调用方。
+
+如果仅是产出值，通过循序可以很容易的实现， 比如:
+
+```python
+for v in g:
+	yield v
+```
+
+但是， 如果期望子生成器能够与调用方之间通过send(), throw(), close()等函数进行通信，那么事情就会变得复杂。稍后我们可以看到， 这些代码非常复杂， 很难正确的处理所有边界条件。
+
+提出这个新的语法能够解决这些问题。最简单的使用案例就等价与执行上述的for循环语句， 此外它还能够处理生成器的所有行为(send(), throw(), close()),  并允许程序员通过一种简单直观的方式分解生成器。
+
+
+
+### 提案
+
+在生成器中将允许使用下面的语法：
+
+>  yield from \<expr\>
+
+\<expr\>是等价于一个可迭代对象的表达式，可将其变为迭代器。在这个迭代器执行期间，它会直接将值yield到调用方，或者直接从调用方中接收值，调用方指的是直接调用包含yield from生成器的对象(这个包含yield from的生成器叫做“委派生成器”)。
+
+此外，当这个迭代器是生成器时， 允许返回(return)一个值， 这个值就是yield from表达式的值。
+
+下面**从生成器协议的角度**充分描述了yield from表达式的语义：
+
+- 迭代器(在这里就是子生成器)的任意值都直接yield给调用方
+- 通过send()函数传给委派生成器的值会直接传给子生成器。如果传递的值是None， 就会调用子生成器的\_\_next\_\_()方法。如果传递的值是None， 那么会调用子生成器的send()方法。如果调用的方法抛出StopIteration异常，委派生成器恢复执行。任何其他的异常都会向上冒泡给委派生成器。
+- 传入委派生成器的异常， 除了GeneratorExit异常以外，都将传给子生成器的throw()方法。如果调用throw方法时抛出StopIteration异常， 委派生成器恢复执行。StopIteration以外的异常会向上冒泡，传给委派生成器。
+- 如果GeneratorExit异常传到了委派生成器， 或者委派生成器的close()方法被调用， 那么子生成器的close()方法(如果有的话)也将被调用。如果调用close() 方法导致异常抛出，那么异常会向上冒泡，传给委派生成器；否则，委派生成器抛出 GeneratorExit 异常。
+- yield from 的值是子生成器终止时传给StopIteration异常的第一个参数。
+- 生成器退出时，生成器（或子生成器）中的return expr 表达式会触发 StopIteration(expr) 异常抛出。
+
+####  StopIteration 改进
+
+为方便起见，StopIteration异常的第一个参数值将会赋值给StopIteration对象的value属性, 默认为None。
+
+#### 形式语义
+
+1. yield from 语句
+
+   >  RESULT = yield from EXPR
+
+   该表达式用伪代码表示等价于：
+
+   ```
+   _i = iter(EXPR)
+   try:
+       _y = next(_i)
+   except StopIteration as _e:
+       _r = _e.value
+   else:
+       while 1:
+           try:
+               _s = yield _y
+           except GeneratorExit as _e:
+               try:
+                   _m = _i.close
+               except AttributeError:
+                   pass
+               else:
+                   _m()
+               raise _e
+           except BaseException as _e:
+               _x = sys.exc_info()
+               try:
+                   _m = _i.throw
+               except AttributeError:
+                   raise _e
+               else:
+                   try:
+                       _y = _m(*_x)
+                   except StopIteration as _e:
+                       _r = _e.value
+                       break
+           else:
+               try:
+                   if _s is None:
+                       _y = next(_i)
+                   else:
+                       _y = _i.send(_s)
+               except StopIteration as _e:
+                   _r = _e.value
+                   break
+   RESULT = _r
+   ```
+
+2. 在生成器中
+
+   > return value
+
+   等价于
+
+   > raise StopIteration(value)
+
+3.  StopIteration 定义
+
+   ```python
+   class StopIteration(Exception):
+   
+       def __init__(self, *args):
+           if len(args) > 0:
+               self.value = args[0]
+           else:
+               self.value = None
+           Exception.__init__(self, *args)
+   ```
+
+
+
+
+
+参考文档:
+
+[PEP380 Syntax for Delegating to a Subgenerator](https://www.python.org/dev/peps/pep-0380/)
+
+[python协程2：yield from 从入门到精通](https://segmentfault.com/a/1190000009781688)
+
+[How Python 3.3 "yield from" construct works](http://flupy.org/resources/yield-from.pdf)
