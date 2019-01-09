@@ -1,8 +1,12 @@
 # notebook
 
+* [notebook](#notebook)
+  * [网络相关](#%E7%BD%91%E7%BB%9C%E7%9B%B8%E5%85%B3)
+  * [python](#python)
+  * [golang](#golang)
+  * [redis](#redis)
 
 
-[TOC]
 
 ## 网络相关
 
