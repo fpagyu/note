@@ -8,4 +8,7 @@
 
 ## 工具篇
 
-[gdb--bootstrap分析]()
+[gdb--bootstrap分析](https://github.com/fpagyu/notebook/blob/master/golang/gdb--bootstrap%E5%88%86%E6%9E%90.md)
+
+[dlv--golang调试工具]()
+

@@ -36,6 +36,8 @@
 
 [Golang 变量到底在堆上还是在栈上](https://github.com/fpagyu/notebook/issues/13)
 
+[golang源码分析(系列)](https://github.com/fpagyu/notebook/blob/master/golang/golang%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90.md)
+
 ## redis
 
 [Redis总结(一)](https://github.com/fpagyu/notebook/issues/3)
