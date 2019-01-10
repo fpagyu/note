@@ -158,9 +158,6 @@ func schedinit() {
 	// 设置最大系统线程数量限制
 	sched.maxmcount = 10000
 	
-	// go变量的初始化发生在运行时启动以后，
-	// schedinit调用该函数使得变量在运行时启动之前就被初始化，
-	// 而不是在变量申明之后才被初始化
 	tracebackinit()
 	moduledataverify()
 	
