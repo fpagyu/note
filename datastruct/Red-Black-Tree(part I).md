@@ -1,0 +1,230 @@
+## 红黑树(Red-Black-Tree)  PART 1
+
+红黑树是一种特殊的二叉搜索树. 红黑树满足二叉搜索树的一切特征(对任意节点A, 其左子树中节点值皆小于A的值, 其右子树中的值都大于A的值).普通二叉搜索树在某些情况下会退化为线性结构, 导致其搜索性能下降. 为了解决这一问题, 引入了红黑树这种结构.
+
+
+
+### 红黑树的性质
+
+> 1. 树中任意节点的颜色非红即黑
+> 2. 树的根节点一定是黑色的
+> 3.  NIL节点(null, nil 或none)是黑色的
+> 4. 如果一个节点是红色的，则它的子节点和父节点(如果有父节点的话)必须是黑色的
+> 5. 从一个节点到该节点的子孙节点的所有路径上包含相同数目的黑节点
+
+红黑树的上述性质保证了红黑树具有下面的特征
+
+> 定理: 一棵含有n个节点的红黑树的高度至多为2log(n+1), 即h <= 2log(n+1)
+
+
+
+### 红黑树定义
+
+```go
+const (
+	RED uint8 = 0
+    BLACK uint8 = 255
+)
+
+type RBNode struct {
+    left *RBNode
+    right *RBNode
+    parent *RBNode
+    
+    key int
+    color uint8
+}
+
+type RBTree struct {
+    root *RBNode
+}
+```
+
+
+
+### 搜索
+
+搜索过程同二叉查找树, 比较简单, 代码如下:
+
+```go
+func (t *RBTree) search(node *RBNode, key int) *RBNode {
+    for node != nil {
+        if key == node.key {
+            break
+        }
+        if key < node.key {
+            node = node.left
+        } else {
+            node = node.right
+        }
+    }
+    return node
+}
+
+func (t *RBTree) Search(key int) *RBNode {
+    return t.search(t.root, key)
+}
+```
+
+### 节点颜色
+
+```go
+// 设置节点颜色
+func (t *RBTree) setColor(node *RBNode, color uint8) {
+    if node != nil {
+        node.color = color
+    }
+}
+
+func (t *RBTree) colorOf(node *RBNode) uint8 {
+    if node == nil || node.color == 255 {
+        return BLACK
+    } else {
+        return RED
+    }
+}
+```
+
+
+
+
+
+### 插入和删除
+
+#### 左旋
+
+```go
+func (t *RBTree) leftRotate(node *RBNode) *RBNode {
+	r := node.right
+	node.right = r.left
+	if node.right != nil {
+		node.right.parent = node
+	}
+    
+    r.parent = node.parent
+    if r.parent == nil {
+        t.root = node
+    } else {
+        if node == node.parent.left {
+            node.parent.left = r
+        } else {
+            node.parent.right = r
+        }
+    }
+    node.parent = r
+    r.left = node
+    
+    return r
+}
+```
+
+### 右旋
+
+```go
+func (t *RBTree) rightRotate(node *RBNode) *RBNode {
+    l := node.left
+    node.left = l.right
+    if node.left != nil {
+        node.left.parent = node
+    }
+    l.parent = node.parent
+    if node.parent == nil {
+        t.root = l
+    } else {
+        if node = node.parent.left {
+            node.parent.left = l
+        } else {
+            node.parent.right = l
+        }
+    }
+    l.right = node
+    node.parent = l
+    
+    return l
+}
+```
+
+### 插入
+
+```go
+func (t *RBTree) Insert(key int) *RBNode {
+    node := t.root
+    var parent *RBNode
+    for node != nil {
+        if key == node.key {
+            // 树中已存在相同key的节点
+            return
+        }
+        parent = node
+        if key < node.key {
+            node = node.left
+        } else {
+            node = node.right
+        }
+    }
+    
+    node = &RBNode{key: key, parent: parent, color: RED}
+    if parent == nil {
+        t.root = node
+    } else {
+        if key < parent.key {
+            parent.left = node
+        } else {
+            parent.right = node
+        }
+    }
+    
+    // 至此已经完成插入操作, 至此已经完成了插入操作
+    // 但插入操作可能会改变红黑树的性质, 需要重新修正
+    t.insertFix(node)
+    return node
+}
+
+func (t *RBTree) insertFix(node *RBNode) {
+    // case1: 插入节点即树根节点
+    if node.parent == nil {
+        t.setColor(node, BLACK)
+        return
+    }
+    
+    // case2: 插入节点的父亲节点为黑色节点, 没有破坏红黑树的性质
+    // case3: 插入节点的父节点为红色节点, 违反了红黑树的性质4
+    for node.parent != nil && t.colorOf(node.parent) == RED {
+        if node.parent == node.parent.left {
+            uncle := node.parent.parent.right
+            if t.colorOf(uncle) == RED {
+                t.setColor(node.parent, BLACK)
+                t.setColor(uncle, BLACK)
+                t.setColor(node.parent.parent, RED)
+                node = node.parent.parent
+            } else {
+                if node == node.parent.right {
+                    t.leftRotate(node.parent)
+                    node = node.left
+                }
+                t.setColor(node.parent, BLACK)
+                t.setColor(node.parent.parent, RED)
+                t.rightRotate(node.parent.parent)
+            }
+        } else {
+            uncle := node.parent.parent.left
+            if t.colorOf(uncle) == RED {
+                t.setColor(node.parent, BLACK)
+                t.setColor(uncle, BLACK)
+                t.setColor(node.parent.parent, RED)
+                node = node.parent.parent
+            } else {
+                if node == node.parent.left {
+                    t.rightRotate(node.parent)
+                    node = node.right
+                }
+                t.setColor(node.parent, BLACK)
+                t.setColor(node.parent.parent, RED)
+                t.leftRotate(node.parent.parent)
+            }
+        }
+    }
+    t.setColor(t.root, BLACK)
+}
+```
+
