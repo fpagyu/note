@@ -14,16 +14,13 @@
 
 ```bash
 # step1: 备份
-mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+mv /etc/yum.repos.d/CentOS-Base.repo{,.backup}
 
 # step2: 下载新的CentOS-Base.repo
 wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 
 # 非aliyun ECS用户
 sed -i -e '/mirrors.cloud.aliyuncs.com/d' -e '/mirrors.aliyuncs.com/d' /etc/yum.repos.d/CentOS-Base.repo
-
-# 
-yum makecache
 ```
 
 **docker镜像源**
@@ -61,10 +58,11 @@ yum install -y yum-utils device-mapper-persistent-data lvm2
 yum install -y conntrack ipvsadm ipset jq sysstat curl iptables libseccomp
 
 # 关闭防火墙
-systemctl stop firewalld && systemctl disable firewalld
+systemctl stop firewalld 
+systemctl disable firewalld
 
 # 重置iptables
-iptables -F && iptables -X && iptables -F -t nat && iptables -X -t nat && iptables -P FORWARD ACCEPT
+sudo iptables -F && sudo iptables -X && sudo iptables -F -t nat && sudo iptables -X -t nat && sudo iptables -P FORWARD ACCEPT
 
 # 关闭swap
 sudo swapoff -a
@@ -74,8 +72,18 @@ sudo sed -i '/swap/s/^\(.*\)$/#\1/g' /etc/fstab
 setenforce 0
 
 # 关闭dnsmasq(否则可能导致docker容器无法解析域名)
-service dnsmasq stop && systemctl disable dnsmasq
+sudo systemctl stop dnsmasq
+sudo systemctl disable dnsmasq
 
+# 设置主机名
+hostnamectl --static set-hostname  k8s-master
+hostnamectl --static set-hostname  k8s-node-1
+hostnamectl --static set-hostname  k8s-node-2
+
+# 编译/etc/hosts文件
+192.168.39.79 k8s-master
+192.168.39.77 k8s-node-1
+192.168.39.78 k8s-node-2
 
 #
 cat <<EOF >  /etc/sysctl.d/k8s.conf
@@ -97,7 +105,7 @@ systemctl restart kubelet
 yum list docker-ce --showduplicates | sort -r
 
 # 安装docker
-yum install -y docker-ce-18.03.0.ce
+yum install -y docker-ce-18.09.0
 
 sudo systemctl daemon-reload
 sudo systemctl start docker
@@ -145,6 +153,12 @@ KUBELET_EXTRA_ARGS="--fail-swap-on=false"
 
 此时还无法正常启动kubelet，先设置kubelet开机自启动，使用如下命令： `systemctl enable kubelet` 。
 
+```bash
+systemctl enable kubelet
+```
+
+
+
 ## 拉取Kubernetes镜像
 
 ```bash
@@ -158,15 +172,50 @@ done;
 
 ## kubeadm init
 
-在master节点上执行
+**在master节点上执行**
 
 ```
-kubeadm init --kubernetes-version=v1.16.3 --pod-network-cidr=10.244.0.0/16 --service-cidr=10.96.0.0/12 --ignore-preflight-errors=Swap
+kubeadm init --kubernetes-version=v1.16.3 --apiserver-advertise-address=192.168.1.167 --pod-network-cidr=10.244.0.0/16 --service-cidr=10.96.0.0/12 --ignore-preflight-errors=Swap
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
 ```
 
-在worker节点上执行
+****
+
+**安装pod网络**
 
 ```bash
-kubeadm join 10.0.2.15:6443 --token n2oyku.8n4uvaww5m3mmihw --discovery-token-ca-cert-hash sha256:c08f9abb8c93f21e70b44b6ee11170a386c23ffd822820f084912b1220853b9c
+# 安装flannel
+sudo yum install -y flannel
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+```
+
+
+
+**在master节点上查看**
+
+```bash
+kubectl get cs -o=go-template='{{printf "|NAME|STATUS|MESSAGE|\n"}}{│
+{range .items}}{{$name := .metadata.name}}{{range .conditions}}{{printf "|%s|%s|%s|\n" $name│
+ .status .message}}{{end}}{{end}}'
+ 
+ 
+ kubectl get cs
+ 
+ kubectl get nodes
+ 
+ kubectl get pods --all-namespaces -o wide
+```
+
+
+
+**在worker节点上执行**
+
+```bash
+kubeadm join 192.168.1.167:6443 --token 9t1y6z.7gp6b07pnvnjrb32 --discovery-token-ca-cert-hash sha256:e67f85d8eb1d12902284398b38db40a29b241335cf08bc093cff0b469a903964
 ```
 
