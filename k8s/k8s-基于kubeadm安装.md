@@ -222,5 +222,8 @@ kubeadm join 192.168.1.167:6443 --token 9t1y6z.7gp6b07pnvnjrb32 --discovery-toke
 
 #### 参考
 [利用 Kubeadm部署 Kubernetes 1.13.1 集群实践录](https://juejin.im/post/5c24189d518825282222a480#heading-10)
+
 [使用kubeadm部署kubernetes集群](https://segmentfault.com/a/1190000016027199)
+
 [基于阿里云镜像站安装Kubernetes](http://ljchen.net/2018/10/23/%E5%9F%BA%E4%BA%8E%E9%98%BF%E9%87%8C%E4%BA%91%E9%95%9C%E5%83%8F%E7%AB%99%E5%AE%89%E8%A3%85kubernetes/)
+
