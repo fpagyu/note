@@ -88,3 +88,6 @@ undo log是采用段(segment)的方式来记录的，每个undo操作在记录�
 
 另外，**undo log**也会产生**redo log**，因为undo log也要实现持久性保护。
 
+
+**延伸阅读**
+[说说MySQL中的Redo log Undo log都在干啥](https://www.cnblogs.com/xinysu/p/6555082.html)
